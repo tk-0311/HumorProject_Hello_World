@@ -1,8 +1,10 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import Home from './index'
+import PostCard from './component/PostCard'
+import { ReactElement } from 'react';
 
-type RosterMember = {
+type user = {
   id: number;
   name: string;
   email_prefix: string;
@@ -13,37 +15,35 @@ export default async function Page() {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data: roster } = await supabase.from('roster').select()
-  console.log('roster', roster)
-
+  const cards: ReactElement[] = await supabase.from('posts').select(`
+    *,
+    users (
+      user_name:name
+    )
+  `).then(({data: posts, error}) => {
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Error fetching posts: ${error.message}`)
+    }
+    console.log('Fetched posts:', posts)
+    return (posts ?? []).map((post) => (
+      <PostCard
+        key={post.id}
+        name={post.users.user_name ?? "Unknown user"}
+        profileImage={post.profile_image}
+        content={post.content}
+        imageSrc={post.image_src}
+        imageAlt={post.image_alt}
+        initialLikes={post.likes}
+      />
+    ))
+  });
   return (
     <>
     <Home/>
-    <table className="w-full border-collapse border border-gray-300">
-    <thead>
-      <tr className="bg-gray-700">
-        <th className="border border-gray-300 px-4 py-2 text-left">
-          Name
-        </th>
-        <th className="border border-gray-300 px-4 py-2 text-left">
-          Email
-        </th>
-      </tr>
-    </thead>
-      
-    <tbody>
-      {roster?.map((member: RosterMember) => (
-        <tr key={member.id}>
-          <td className="border border-gray-300 px-4 py-2">
-            {member.name}
-          </td>
-          <td className="border border-gray-300 px-4 py-2">
-            {member.email_prefix}@{member.email_domain}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-    </table>
+    <div className="flex flex-col gap-4"> 
+    {cards}
+    </div>
     </>
   )
 }
