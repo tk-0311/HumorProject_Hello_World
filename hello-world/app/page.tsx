@@ -1,15 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
-import Home from './index'
-import PostCard from './component/PostCard'
+import PostCard from './components/PostCard'
 import { ReactElement } from 'react';
-
-type user = {
-  id: number;
-  name: string;
-  email_prefix: string;
-  email_domain: string;
-};
+import NavBar from "./components/NavBar";
 
 export default async function Page() {
   const cookieStore = await cookies()
@@ -17,20 +10,20 @@ export default async function Page() {
 
   const cards: ReactElement[] = await supabase.from('posts').select(`
     *,
-    users (
-      user_name:name
+    profiles (
+      username,
+      profile_image
     )
   `).then(({data: posts, error}) => {
     if (error) {
       console.error('Supabase error:', error)
       throw new Error(`Error fetching posts: ${error.message}`)
     }
-    console.log('Fetched posts:', posts)
     return (posts ?? []).map((post) => (
       <PostCard
         key={post.id}
-        name={post.users.user_name ?? "Unknown user"}
-        profileImage={post.profile_image}
+        name={post.profiles?.username ?? "Anonymous"}
+        profileImage={post.profiles?.profile_image ?? undefined}
         content={post.content}
         imageSrc={post.image_src}
         imageAlt={post.image_alt}
@@ -40,7 +33,7 @@ export default async function Page() {
   });
   return (
     <>
-    <Home/>
+    <NavBar />
     <div className="flex flex-col gap-4"> 
     {cards}
     </div>

@@ -85,7 +85,7 @@ export default function PostCard({
   }
 
   return (
-    <article className="w-full max-w-[525px] overflow-hidden bg-[#191919] text-white">
+    <article className="app-surface w-full max-w-[525px] overflow-hidden">
       <div className="p-5 sm:p-6">
         <header className="mb-7 flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -117,7 +117,7 @@ export default function PostCard({
         </p>
 
         {imageSrc && (
-          <div className="overflow-hidden bg-[#343434]">
+          <div className="app-surface-border overflow-hidden border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={imageSrc} alt={imageAlt} loading="lazy"
               className="block max-h-[650px] w-full object-contain" />
@@ -125,10 +125,10 @@ export default function PostCard({
         )}
       </div>
 
-      <footer className="flex min-h-[100px] items-center justify-between gap-3 border-t border-white/10 px-5 py-4 sm:px-6">
+      <footer className="app-surface-border flex min-h-[100px] items-center justify-between gap-3 border-t px-5 py-4 sm:px-6">
         <button type="button" onClick={toggleBookmark} aria-pressed={bookmarked}
           aria-label={bookmarked ? "Remove bookmark" : "Bookmark post"}
-          className={`${buttonClass} shrink-0 ${bookmarked ? "text-yellow-400" : "text-white"}`}>
+          className={`${buttonClass} shrink-0 ${bookmarked ? "text-yellow-500" : "text-[var(--foreground)]"}`}>
           <Icon filled={bookmarked}>
             <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-5-7 5V4a1 1 0 0 1 1-1Z" />
           </Icon>
