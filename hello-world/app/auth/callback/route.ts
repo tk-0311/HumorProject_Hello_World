@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { redirect } from "next/navigation";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -14,9 +14,9 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      return NextResponse.redirect(new URL(safeNext, requestUrl.origin));
+      redirect(safeNext);
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=oauth", requestUrl.origin));
+  redirect("/login?error=oauth");
 }
