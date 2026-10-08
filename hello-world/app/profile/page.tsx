@@ -53,9 +53,12 @@ export default async function ProfilePage() {
   return (
     <>
       <NavBar />
-      <main className="min-h-[calc(100svh-112px)] bg-[#0c0a09] px-5 py-10 text-white sm:min-h-[calc(100svh-148px)] sm:px-8 sm:py-12 lg:px-[max(64px,calc((100vw-1800px)/2))]">
-        <section aria-labelledby="profile-heading" className="mx-auto w-full max-w-[1900px]">
-          <h1 id="profile-heading" className="text-3xl font-bold sm:text-[42px]">Your Profile</h1>
+      <main className="min-h-[calc(100svh-85px)] bg-[var(--background)] px-5 py-10 text-[var(--foreground)] sm:min-h-[calc(100svh-104px)] sm:px-8 sm:py-12">
+        <section aria-labelledby="profile-heading" className="mx-auto w-full max-w-[860px] rounded-[18px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_16px_50px_rgba(37,41,35,0.07)] sm:p-10">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
+            <span aria-hidden="true" className="text-lg">✳</span> Your corner of the internet
+          </p>
+          <h1 id="profile-heading" className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Your Profile</h1>
           <ProfilePhotoForm
             currentPhoto={photoProfile?.profile_image ?? null}
             displayName={`${profile?.f_name ?? ""} ${profile?.l_name ?? ""}`.trim() || nameParts.join(" ") || "Your profile"}

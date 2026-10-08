@@ -13,7 +13,7 @@ export default function LoginForm() {
   return (
     <form action={formAction} className="mt-10 space-y-8">
       <div className="space-y-3">
-        <label htmlFor="email" className="block text-[20px] font-medium text-white sm:text-[24px]">
+        <label htmlFor="email" className="block text-base font-semibold text-[var(--foreground)]">
           Email
         </label>
         <input
@@ -22,13 +22,13 @@ export default function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          className="h-[68px] w-full border border-white/15 bg-[#0c0a09] px-5 text-lg text-white outline-none transition-colors placeholder:text-[#aaa6a3] focus:border-[#ffda00] focus:ring-1 focus:ring-[#ffda00] sm:text-[24px]"
+          className="h-14 w-full rounded-[8px] border border-[var(--border)] bg-[var(--background)] px-4 text-base text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
           placeholder="you@example.com"
         />
       </div>
 
       <div className="space-y-3">
-        <label htmlFor="password" className="block text-[20px] font-medium text-white sm:text-[24px]">
+        <label htmlFor="password" className="block text-base font-semibold text-[var(--foreground)]">
           Password
         </label>
         <div className="relative">
@@ -38,7 +38,7 @@ export default function LoginForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
-            className="h-[68px] w-full border border-white/15 bg-[#0c0a09] px-5 pr-14 text-lg text-white outline-none transition-colors placeholder:text-[#aaa6a3] focus:border-[#ffda00] focus:ring-1 focus:ring-[#ffda00] sm:text-[24px]"
+            className="h-14 w-full rounded-[8px] border border-[var(--border)] bg-[var(--background)] px-4 pr-14 text-base text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
             placeholder="Your password"
           />
           <button
@@ -46,7 +46,7 @@ export default function LoginForm() {
             onClick={() => setShowPassword((visible) => !visible)}
             aria-label={showPassword ? "Hide password" : "Show password"}
             aria-pressed={showPassword}
-            className="absolute inset-y-0 right-3 flex w-10 items-center justify-center text-[#aaa6a3] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffda00]"
+            className="absolute inset-y-0 right-3 flex w-10 items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)]"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8">
               {showPassword ? (
@@ -63,13 +63,13 @@ export default function LoginForm() {
             </svg>
           </button>
         </div>
-        <Link href="/forgot-password" className="inline-flex text-base text-white underline underline-offset-4 hover:text-[#ffda00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffda00]">
+        <Link href="/forgot-password" className="inline-flex text-sm font-semibold text-[var(--accent-strong)] underline underline-offset-4 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)]">
           Forgot Password?
         </Link>
       </div>
 
       {state.error && (
-        <p role="alert" className="border-l-2 border-[#ffda00] bg-[#ffda00]/10 px-4 py-3 text-sm text-[#ffe56b]">
+        <p role="alert" className="rounded-md border-l-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200">
           {state.error}
         </p>
       )}
@@ -77,14 +77,14 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-          className="flex h-[68px] w-full items-center justify-center bg-[#ffda00] px-5 text-xl font-bold text-[#17120a] transition-colors hover:bg-[#ffe54d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-60 sm:text-[24px]"
+        className="flex h-14 w-full items-center justify-center rounded-[9px] bg-[var(--accent)] px-5 text-base font-bold text-[var(--foreground)] transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] disabled:cursor-wait disabled:opacity-60"
       >
-          {pending ? "Signing in..." : "Login"}
+        {pending ? "Signing in..." : "Login"}
       </button>
 
-      <p className="pt-7 text-center text-lg text-white sm:text-[24px]">
+      <p className="pt-3 text-center text-sm text-[var(--muted)]">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="underline underline-offset-4 hover:text-[#ffda00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffda00]">
+        <Link href="/signup" className="font-semibold text-[var(--accent-strong)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)]">
           Sign up
         </Link>
       </p>

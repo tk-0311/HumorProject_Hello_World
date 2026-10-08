@@ -95,7 +95,7 @@ export default function AccountMenu({ name, email }: AccountMenuProps) {
         aria-expanded={open}
         aria-controls="account-menu-panel"
         onClick={toggleMenu}
-        className={`flex h-14 w-14 items-center justify-center transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffda00] ${open ? "bg-[var(--menu-hover)]" : ""}`}
+        className={`flex h-14 w-14 items-center justify-center transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] ${open ? "bg-[var(--menu-hover)]" : ""}`}
       >
         <PersonIcon />
       </button>
@@ -111,7 +111,7 @@ export default function AccountMenu({ name, email }: AccountMenuProps) {
             <Link
               href="/profile"
               onClick={() => setOpen(false)}
-              className="flex min-h-14 items-center px-3 text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ffda00]"
+              className="flex min-h-14 items-center px-3 text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-strong)]"
             >
               Profile
             </Link>
@@ -121,7 +121,7 @@ export default function AccountMenu({ name, email }: AccountMenuProps) {
               aria-expanded={themeMenuOpen}
               aria-controls="theme-options"
               onClick={() => setThemeMenuOpen((isOpen) => !isOpen)}
-              className="flex min-h-14 w-full items-center justify-between px-3 text-left text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ffda00]"
+              className="flex min-h-14 w-full items-center justify-between px-3 text-left text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-strong)]"
             >
               Theme
               <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className={`h-6 w-6 transition-transform ${themeMenuOpen ? "rotate-90" : ""}`} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
@@ -137,17 +137,17 @@ export default function AccountMenu({ name, email }: AccountMenuProps) {
                     type="button"
                     aria-pressed={theme === option.value}
                     onClick={() => selectTheme(option.value)}
-                    className="flex min-h-11 w-full items-center justify-between px-3 text-base text-[var(--muted)] transition-colors hover:bg-[var(--menu-hover)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ffda00]"
+                    className="flex min-h-11 w-full items-center justify-between px-3 text-base text-[var(--muted)] transition-colors hover:bg-[var(--menu-hover)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-strong)]"
                   >
                     {option.label}
-                    {theme === option.value && <span aria-hidden="true" className="text-[#d1a900]">Selected</span>}
+                    {theme === option.value && <span aria-hidden="true" className="text-[var(--accent-strong)]">Selected</span>}
                   </button>
                 ))}
               </div>
             )}
 
             <form action={signOut}>
-              <button type="submit" className="flex min-h-14 w-full items-center px-3 text-left text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ffda00]">
+              <button type="submit" className="flex min-h-14 w-full items-center px-3 text-left text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-strong)]">
                 Sign out
               </button>
             </form>

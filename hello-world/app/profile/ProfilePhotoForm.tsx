@@ -110,14 +110,14 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
   }
 
   return (
-    <form onSubmit={handleUpload} className="mt-8 flex flex-col gap-5 border-b border-white/10 pb-8 sm:flex-row sm:items-center">
+    <form onSubmit={handleUpload} className="mt-8 flex flex-col gap-5 border-b border-[var(--border)] pb-8 sm:flex-row sm:items-center">
       <div className="flex items-center gap-4">
         {currentPhoto ? (
           // Profile images are stored in a public Supabase Storage bucket.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={currentPhoto} alt={`${displayName}'s profile`} className="h-24 w-24 rounded-full border border-white/15 object-cover" />
+          <img src={currentPhoto} alt={`${displayName}'s profile`} className="h-24 w-24 rounded-full border border-[var(--border)] object-cover" />
         ) : (
-          <span aria-hidden="true" className="flex h-24 w-24 items-center justify-center rounded-full border border-white/15 bg-white/5 text-3xl font-semibold text-[#ffda00]">
+          <span aria-hidden="true" className="flex h-24 w-24 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--accent)] text-3xl font-semibold text-[var(--foreground)]">
             {Array.from(displayName.trim())[0]?.toUpperCase() || "?"}
           </span>
         )}
@@ -135,19 +135,19 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           required
-          className="block w-full text-sm text-[var(--muted)] file:mr-4 file:border file:border-white/20 file:bg-transparent file:px-4 file:py-3 file:font-semibold file:text-[var(--foreground)] hover:file:bg-white/5 sm:max-w-md"
+          className="block w-full text-sm text-[var(--muted)] file:mr-4 file:rounded-[7px] file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-4 file:py-3 file:font-semibold file:text-[var(--foreground)] hover:file:bg-[var(--menu-hover)] sm:max-w-md"
         />
         <button
           type="submit"
           disabled={pending}
-          className="flex min-h-12 items-center justify-center bg-[#ffda00] px-6 font-semibold text-[#17120a] transition-colors hover:bg-[#ffe54d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-60"
+          className="flex min-h-12 items-center justify-center rounded-[9px] bg-[var(--accent)] px-6 font-semibold text-[var(--foreground)] transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] disabled:cursor-wait disabled:opacity-60"
         >
           {pending ? "Uploading..." : "Upload photo"}
         </button>
       </div>
 
-      {errorMessage && <p role="alert" className="text-sm text-[#ffe56b] sm:basis-full">{errorMessage}</p>}
-      {successMessage && <p role="status" className="text-sm text-emerald-300 sm:basis-full">{successMessage}</p>}
+      {errorMessage && <p role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200 sm:basis-full">{errorMessage}</p>}
+      {successMessage && <p role="status" className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200 sm:basis-full">{successMessage}</p>}
     </form>
   );
 }

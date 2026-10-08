@@ -12,8 +12,8 @@ type ProfileFormProps = {
   address: string;
 };
 
-const inputClassName = "h-[70px] w-full border border-white/15 bg-transparent px-5 text-lg text-white outline-none transition-colors focus:border-[#ffda00] focus:ring-1 focus:ring-[#ffda00] sm:text-[24px]";
-const labelClassName = "mb-4 block text-lg font-medium text-white sm:text-[24px]";
+const inputClassName = "h-14 w-full rounded-[8px] border border-[var(--border)] bg-[var(--background)] px-4 text-base text-[var(--foreground)] outline-none transition-colors focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]";
+const labelClassName = "mb-2 block text-sm font-semibold text-[var(--foreground)]";
 
 export default function ProfileForm({ firstName, lastName, email, address }: ProfileFormProps) {
   const [state, formAction, pending] = useActionState(saveProfile, initialState);
@@ -49,11 +49,11 @@ export default function ProfileForm({ firstName, lastName, email, address }: Pro
           defaultValue={address} className={inputClassName} placeholder="Enter your address" />
       </div>
 
-      {state.error && <p role="alert" className="border-l-2 border-[#ffda00] bg-[#ffda00]/10 px-4 py-3 text-sm text-[#ffe56b]">{state.error}</p>}
-      {state.success && <p role="status" className="border-l-2 border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{state.success}</p>}
+      {state.error &&       <p role="alert" className="rounded-md border-l-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200">{state.error}</p>}
+      {state.success &&       <p role="status" className="rounded-md border-l-2 border-emerald-600 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{state.success}</p>}
 
       <button type="submit" disabled={pending}
-        className="flex h-[70px] w-full items-center justify-center bg-[#ffda00] px-5 text-xl font-semibold text-[#17120a] transition-colors hover:bg-[#ffe54d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-60 sm:text-[24px]">
+        className="flex h-14 w-full items-center justify-center rounded-[9px] bg-[var(--accent)] px-5 text-base font-bold text-[var(--foreground)] transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] disabled:cursor-wait disabled:opacity-60">
         {pending ? "Saving..." : "Save"}
       </button>
     </form>

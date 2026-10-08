@@ -11,14 +11,14 @@ export default function GoogleLoginForm({ label = "Continue with Google" }: { la
   return (
     <form action={formAction} className="mt-8">
       {state.error && (
-        <p role="alert" className="mb-4 border-l-2 border-[#ffda00] bg-[#ffda00]/10 px-4 py-3 text-sm text-[#ffe56b]">
+        <p role="alert" className="mb-4 rounded-md border-l-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200">
           {state.error}
         </p>
       )}
       <button
         type="submit"
         disabled={pending}
-        className="flex h-14 w-full items-center justify-center gap-3 border border-white/20 bg-white px-5 text-base font-semibold text-[#17120a] transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffda00] disabled:cursor-wait disabled:opacity-60"
+        className="flex h-14 w-full items-center justify-center gap-3 rounded-[9px] border border-[var(--border)] bg-white px-5 text-base font-semibold text-[#252923] transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] disabled:cursor-wait disabled:opacity-60"
       >
         <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5">
           <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.7c3.9-3.6 6-8.8 6-15Z" />

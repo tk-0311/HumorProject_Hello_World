@@ -47,7 +47,7 @@ export default function PostCard({
   const [sharing, setSharing] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const likes = Math.max(0, initialLikes + Number(liked) - Number(initialLiked));
-  const buttonClass = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400";
+  const buttonClass = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)]";
 
   function toggleLike() {
     const next = !liked;
@@ -85,7 +85,7 @@ export default function PostCard({
   }
 
   return (
-    <article className="app-surface w-full max-w-[525px] overflow-hidden">
+    <article className="app-surface w-full max-w-[620px] overflow-hidden rounded-[16px] border border-[var(--border)] shadow-[0_10px_35px_rgba(37,41,35,0.06)]">
       <div className="p-5 sm:p-6">
         <header className="mb-7 flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -95,16 +95,16 @@ export default function PostCard({
               <img src={profileImage} alt={`${name}'s profile`} width={44} height={44}
                 className="h-11 w-11 shrink-0 rounded-full object-cover" />
             ) : (
-              <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-yellow-400/10 text-xl font-bold text-yellow-400">
+              <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--foreground)]">
                 {Array.from(name.trim())[0]?.toUpperCase() || "?"}
               </span>
             )}
-            <span className="truncate text-2xl font-bold text-[#ffda00]">{name}</span>
+            <span className="truncate text-xl font-bold text-[var(--foreground)]">{name}</span>
           </div>
 
           <button type="button" onClick={toggleLike} aria-pressed={liked}
             aria-label={`${liked ? "Unlike" : "Like"} post, ${likes} likes`}
-            className={`${buttonClass} shrink-0 flex-col gap-1 px-2 py-1 ${liked ? "text-yellow-400" : "text-white"}`}>
+            className={`${buttonClass} shrink-0 flex-col gap-1 px-2 py-1 ${liked ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"}`}>
             <Icon filled={liked}>
               <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
             </Icon>
@@ -125,16 +125,16 @@ export default function PostCard({
         )}
       </div>
 
-      <footer className="app-surface-border flex min-h-[100px] items-center justify-between gap-3 border-t px-5 py-4 sm:px-6">
+      <footer className="app-surface-border flex min-h-[72px] items-center justify-between gap-3 border-t px-5 py-3 sm:px-6">
         <button type="button" onClick={toggleBookmark} aria-pressed={bookmarked}
           aria-label={bookmarked ? "Remove bookmark" : "Bookmark post"}
-          className={`${buttonClass} shrink-0 ${bookmarked ? "text-yellow-500" : "text-[var(--foreground)]"}`}>
+          className={`${buttonClass} shrink-0 ${bookmarked ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"}`}>
           <Icon filled={bookmarked}>
             <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-5-7 5V4a1 1 0 0 1 1-1Z" />
           </Icon>
         </button>
 
-        <span role="status" aria-live="polite" className="text-center text-xs text-neutral-400">
+        <span role="status" aria-live="polite" className="text-center text-xs text-[var(--muted)]">
           {shareStatus}
         </span>
 
