@@ -3,10 +3,20 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import CaptionCard, { type Caption } from './CaptionCard';
-export default async function CaptionFeed({ canVote }: { canVote: boolean }) {
+export default async function CaptionFeed({ canVote, prioritizeRecentLikes = false }: { canVote: boolean; prioritizeRecentLikes?: boolean }) {
   const supabase = createClient(await cookies());
-  const { data, error } = await supabase.from('ai_generations').select('id,situation,caption,style,created_at,image_path').order('created_at', { ascending: false }).limit(30);
-  if (error) return <p role="status" className="rounded-lg border border-[var(--border)] p-5">Captions are unavailable right now. Please try again later.</p>;
+  const newestCaptions = () => supabase.from('ai_generations').select('id,situation,caption,style,created_at,image_path').order('created_at', { ascending: false }).limit(30);
+  let { data, error } = prioritizeRecentLikes
+    ? await supabase.rpc('ranked_caption_feed')
+    : await newestCaptions();
+  if (prioritizeRecentLikes && error && ['PGRST202', '42883'].includes(error.code)) {
+    console.warn('[caption-feed] Ranking function is missing. Apply database/ranked-caption-feed.sql; showing newest posts instead.');
+    ({ data, error } = await newestCaptions());
+  }
+  if (error) {
+    console.error('[caption-feed] Could not load captions', { code: error.code });
+    return <p role="status" className="rounded-lg border border-[var(--border)] p-5">Captions are unavailable right now. Please try again later.</p>;
+  }
   const captions: Caption[] = data ?? [];
   if (!captions.length) return <div className="app-surface rounded-2xl border border-[var(--border)] p-6"><h3 className="text-xl font-bold">Be the first bad influence.</h3><p className="my-3 text-[var(--muted)]">No AI captions yet. Turn a campus or NYC moment into the first one.</p><Link href={canVote ? '/new' : '/login'} className="font-bold underline">{canVote ? 'Generate a caption' : 'Log in to generate'}</Link></div>;
   const imagePaths = captions.flatMap(c => c.image_path ? [c.image_path] : []);

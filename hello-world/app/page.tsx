@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import Link from 'next/link';
+import GenerateCaptionButton from './components/GenerateCaptionButton';
 import { createClient } from '@/utils/supabase/server';
 import NavBar from './components/NavBar';
 import CaptionFeed from './components/CaptionFeed';
@@ -23,11 +23,9 @@ export default async function Page() {
             </p>
             <h1 id="feed-title" className="mt-3 text-4xl font-extrabold tracking-tight sm:text-5xl">Fresh AI captions.</h1>
             <p className="mt-3 text-base text-[var(--muted)]">Real photos. AI punchlines. You decide what’s funny.</p>
-            <Link href="/new" className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--foreground)] px-5 py-3 font-bold text-[var(--background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-              Generate a caption
-            </Link>
+            <GenerateCaptionButton />
           </div>
-          <CaptionFeed canVote={true} />
+          <CaptionFeed canVote={true} prioritizeRecentLikes />
         </section>
       </main>
     </>

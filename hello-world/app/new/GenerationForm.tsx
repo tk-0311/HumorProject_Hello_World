@@ -1,10 +1,12 @@
 'use client';
 import { useEffect, useRef, useState, useTransition, type ChangeEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { generateCaptionOptions, publishCaptionChoice, type CaptionOptionsState } from './actions';
 import { imageFileError } from '@/lib/ai/images';
 const empty: CaptionOptionsState = { error: '', draftId: '', captions: [] };
 export default function GenerationForm() {
+  const router = useRouter();
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
   const [style, setStyle] = useState('dry');
@@ -45,7 +47,14 @@ export default function GenerationForm() {
     inFlight.current = true;
     setError('');
     publishTransition(async () => {
-      try { const result = await publishCaptionChoice(options.draftId, selected); setError(result.error); if (result.id) setPublishedId(result.id); }
+      try {
+        const result = await publishCaptionChoice(options.draftId, selected);
+        setError(result.error);
+        if (result.id) {
+          setPublishedId(result.id);
+          router.replace('/');
+        }
+      }
       catch { setError('Could not confirm publication. Please retry; this will not create a duplicate post.'); }
       finally { inFlight.current = false; }
     });
@@ -64,7 +73,7 @@ export default function GenerationForm() {
       <label htmlFor="style" className="block font-bold">Your flavor of funny</label>
       <select id="style" disabled={busy} value={style} onChange={event => { setStyle(event.target.value); clearOptions(); }} className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] p-3"><option value="dry">Dry — painfully relatable</option><option value="absurd">Absurd — a little unhinged</option><option value="wholesome">Wholesome — gentle chaos</option></select>
       <button type="button" onClick={generate} disabled={busy || !image} className="min-h-11 rounded-lg bg-[var(--foreground)] px-5 py-3 font-bold text-[var(--background)] disabled:opacity-50">{generating ? 'Thinking of three good ones…' : options.draftId ? 'Generate three more' : 'Generate caption options'}</button>
-      <p className="text-sm text-[var(--muted)]">Your photo is sent to Gemini. Options stay private until you publish. Each set uses one of your 10 daily attempts (UTC), including failed attempts.</p>
+      <p className="text-sm text-[var(--muted)]">Your photo is sent to Gemini. Options stay private until you publish. Only successfully generated and saved sets count toward your 10 daily sets (UTC). Failed attempts do not count.</p>
     </section>
     {options.draftId && <section aria-labelledby="choice-title" className="app-surface space-y-5 rounded-2xl border border-[var(--border)] p-6">
       <h2 id="choice-title" className="text-xl font-bold">2. Pick the one that lands</h2>

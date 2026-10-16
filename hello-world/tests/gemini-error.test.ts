@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { describeGeminiError } from '../lib/ai/gemini-error';
+import { describeGeminiError, shouldFallbackGeminiModel } from '../lib/ai/gemini-error';
 
 test('keeps the provider rejection detail and distinguishes configuration failures', () => {
   const result = describeGeminiError(400, { error: {
@@ -37,4 +37,11 @@ test('handles empty, non-JSON, or malformed error bodies without hiding HTTP sta
     assert.equal(result.diagnostic.httpStatus, 502);
     assert.equal(result.diagnostic.detail, '');
   }
+});
+
+test('falls back only for temporary Gemini service unavailability', () => {
+  assert.equal(shouldFallbackGeminiModel(503, 'UNAVAILABLE'), true);
+  assert.equal(shouldFallbackGeminiModel(503, ''), true);
+  assert.equal(shouldFallbackGeminiModel(429, 'RESOURCE_EXHAUSTED'), false);
+  assert.equal(shouldFallbackGeminiModel(400, 'INVALID_ARGUMENT'), false);
 });

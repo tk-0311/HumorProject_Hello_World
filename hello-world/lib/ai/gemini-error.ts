@@ -2,6 +2,10 @@ type JsonObject = Record<string, unknown>;
 const asObject = (value: unknown): JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? value as JsonObject : {};
 
+export function shouldFallbackGeminiModel(httpStatus: number, googleStatus: string): boolean {
+  return httpStatus === 503 || googleStatus === 'UNAVAILABLE';
+}
+
 // Provider errors can echo credentials or inline image data. Never log the
 // request, headers, full response, or Google's error metadata.
 export function describeGeminiError(httpStatus: number, body: unknown, apiKey: string) {

@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { CAPTION_IMAGE_BUCKET, imageFileError, imageExtension, matchesImageSignature, type ImageType } from '@/lib/ai/images';
 import { buildImageCaptionPrompt, parseCaptionOptions, parseStyle, validCaptionSelection } from '@/lib/ai/caption-options';
-import { describeGeminiError } from '@/lib/ai/gemini-error';
+import { describeGeminiError, shouldFallbackGeminiModel } from '@/lib/ai/gemini-error';
 
 export type CaptionOptionsState = { error: string; draftId: string; captions: string[] };
 export async function generateCaptionOptions(form: FormData): Promise<CaptionOptionsState> {
@@ -26,32 +26,50 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   if (!key || !model || !/^[a-zA-Z0-9.-]+$/.test(model)) return failure('Caption generation is not configured yet. Please try again later.');
   const { data: allowed, error: limitError } = await supabase.rpc('claim_caption_attempt');
   if (limitError) return failure('Could not check your generation allowance. Please try again.');
-  if (!allowed) return failure('You’ve used your 10 attempts for today. Come back tomorrow (UTC).');
+  if (!allowed) return failure('You’ve generated your 10 caption sets for today. Come back tomorrow (UTC).');
   const prompt = buildImageCaptionPrompt(style);
+  const fallbackModel = 'gemini-3.1-flash-lite';
+  const requestBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: image.type, data: imageBytes.toString('base64') } }] }],
+    generationConfig: { maxOutputTokens: 2048, responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: { type: 'object', properties: { captions: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 } }, required: ['captions'], additionalProperties: false } } } },
+  });
+  const requestGemini = (modelName: string) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
+    method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(25000),
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+    body: requestBody,
+  });
+  const logGeminiRejection = async (modelName: string, response: Response) => {
+    const errorBody: unknown = await response.json().catch(() => null);
+    const { message, diagnostic } = describeGeminiError(response.status, errorBody, key);
+    // Detailed provider messages stay in local development logs. Production
+    // logs contain only codes, and the browser never receives raw details.
+    console.error('[caption-generation] Gemini rejected request ' + JSON.stringify({
+      model: modelName, httpStatus: diagnostic.httpStatus,
+      googleStatus: diagnostic.googleStatus, reason: diagnostic.reason,
+      ...(process.env.NODE_ENV === 'development' ? { detail: diagnostic.detail } : {}),
+    }));
+    const code = process.env.NODE_ENV === 'development'
+      ? ` (HTTP ${diagnostic.httpStatus}${diagnostic.googleStatus ? ` / ${diagnostic.googleStatus}` : ''})`
+      : '';
+    return { message: message + code, diagnostic };
+  };
   let captions: string[];
+  let modelUsed = model;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(25000),
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: image.type, data: imageBytes.toString('base64') } }] }],
-        generationConfig: { maxOutputTokens: 2048, responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: { type: 'object', properties: { captions: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 } }, required: ['captions'], additionalProperties: false } } } },
-      }),
-    });
+    let response = await requestGemini(modelUsed);
     if (!response.ok) {
-      const errorBody: unknown = await response.json().catch(() => null);
-      const { message, diagnostic } = describeGeminiError(response.status, errorBody, key);
-      // Detailed provider messages stay in local development logs. Production
-      // logs contain only codes, and the browser never receives raw details.
-      console.error('[caption-generation] Gemini rejected request ' + JSON.stringify({
-        model, httpStatus: diagnostic.httpStatus,
-        googleStatus: diagnostic.googleStatus, reason: diagnostic.reason,
-        ...(process.env.NODE_ENV === 'development' ? { detail: diagnostic.detail } : {}),
-      }));
-      const code = process.env.NODE_ENV === 'development'
-        ? ` (HTTP ${diagnostic.httpStatus}${diagnostic.googleStatus ? ` / ${diagnostic.googleStatus}` : ''})`
-        : '';
-      return failure(message + code);
+      const primaryFailure = await logGeminiRejection(modelUsed, response);
+      if (!shouldFallbackGeminiModel(primaryFailure.diagnostic.httpStatus, primaryFailure.diagnostic.googleStatus)
+        || modelUsed === fallbackModel) {
+        return failure(primaryFailure.message);
+      }
+      console.warn(`[caption-generation] ${modelUsed} is unavailable; retrying once with ${fallbackModel}.`);
+      modelUsed = fallbackModel;
+      response = await requestGemini(modelUsed);
+      if (!response.ok) {
+        const fallbackFailure = await logGeminiRejection(modelUsed, response);
+        return failure(fallbackFailure.message);
+      }
     }
     const body = await response.json();
     const candidate = body.candidates?.[0];
@@ -63,10 +81,12 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   const { error: uploadError } = await supabase.storage.from(CAPTION_IMAGE_BUCKET).upload(imagePath, imageBytes, { contentType: image.type, upsert: false });
   if (uploadError) return failure('Your photo could not be saved. Please try again.');
   // Options, prompt, and image stay private until the owner chooses a caption.
-  const { data, error } = await supabase.from('caption_drafts').insert({ user_id: user.id, image_path: imagePath, prompt, style, model, captions }).select('id').single();
+  const { data, error } = await supabase.from('caption_drafts').insert({ user_id: user.id, image_path: imagePath, prompt, style, model: modelUsed, captions }).select('id').single();
   if (error || !data) {
     await supabase.storage.from(CAPTION_IMAGE_BUCKET).remove([imagePath]);
-    return failure('Your caption options could not be saved. Please try again.');
+    return failure(error?.code === 'P0001'
+      ? 'You’ve generated your 10 caption sets for today. Come back tomorrow (UTC).'
+      : 'Your caption options could not be saved. Please try again.');
   }
   return { error: '', draftId: data.id, captions };
 }

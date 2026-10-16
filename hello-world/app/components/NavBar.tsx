@@ -49,7 +49,7 @@ function SignedInNavBar({ name, email }: { name: string; email: string }) {
 					<BrandLink />
 					{/* creating new post needs functionality */}
 						<Link href="/new" className="text-sm font-semibold transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] sm:text-base">
-						New
+						Generate a Caption
 					</Link>
 				</div>
 

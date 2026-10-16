@@ -8,11 +8,11 @@ Sam wants relatable campus and NYC humor with little effort. The app turns one s
 
 - `/new`: authenticated creation form, three styles, situation suggestions, loading/error/result states.
 - `/captions`: newest 30 saved captions, aggregate scores, sign-in prompt for visitors.
-- `/`: logged-out landing page; signed-in real feed with AI captions and creation links.
+- `/`: logged-out landing page; signed-in real feed with AI captions and creation links. Apply `database/ranked-caption-feed.sql` after the caption/image migrations: posts from the last 72 hours appear first, ranked by positive votes (likes), with newer posts breaking ties. Older posts follow newest-first, up to 30 posts total. Ranking happens before the limit; downvotes affect displayed scores but not the likes ranking. `/captions` remains newest-first. If the ranking function is missing (`PGRST202` or `42883`), the homepage temporarily falls back to newest-first and logs a migration reminder. Other query failures log their error code on the server and keep the unavailable message.
 - Server-side Gemini calls, 25-second timeout, structured JSON output validation.
 - Stored situation, full provider prompt, model, creator, caption, and timestamp.
 - One vote per user/caption; changing a vote updates it, clicking the selected vote removes it.
-- Database-reserved limit of ten generation attempts per user per UTC day. Failed calls count. Provider-level limits still need configuration for aggregate usage across users.
+- Limit of ten successfully generated and saved caption sets per user per UTC day. Failed calls do not count. Apply `database/successful-caption-quota.sql` after `database/caption-choices.sql` to enable this policy on existing databases. It counts saved drafts (including existing drafts), ignores historical failed attempts, and serializes draft inserts to enforce the limit under concurrent requests. Provider-level limits still need configuration for aggregate usage across users.
 
 ## Installation
 
@@ -35,7 +35,7 @@ Official API reference: https://ai.google.dev/gemini-api/docs/generate-content/s
 
 New generations can only be inserted with the signed-in user's ID. Prompt, model, and creator columns are not readable by public clients; displayed situation/caption fields are public. Existing posts/profiles require authentication, and existing private profile column grants are retained. Votes are readable/mutable only by their owners; a unique key and value constraint enforce valid single votes. Arbitrary raw vote mutations cannot alter another user's vote.
 
-`caption_scores` deliberately uses SECURITY DEFINER to return only aggregate scores for at most 100 captions while keeping individual votes private. `claim_caption_attempt` deliberately uses it to atomically reserve attempts under a per-user advisory lock. Both fix their search path, use qualified table names, and restrict execution grants. The existing private profile-details function remains owner-scoped. The security advisor flags these deliberate function boundaries for review. Existing leaked-password protection is disabled; enable it in Supabase Auth settings when available.
+`caption_scores` deliberately uses SECURITY DEFINER to return only aggregate scores for at most 100 captions while keeping individual votes private. After the successful-caption-quota migration, `claim_caption_attempt` checks the saved-draft count without reserving an attempt; `enforce_successful_caption_quota` enforces the limit under a per-user advisory lock when a draft is saved. Both fix their search path, use qualified table names, and restrict execution grants. The existing private profile-details function remains owner-scoped. The security advisor flags these deliberate function boundaries for review. Existing leaked-password protection is disabled; enable it in Supabase Auth settings when available.
 
 The legacy anonymous profile-picture write policies were removed; the app's owner-folder profile-photo upload/update/delete policies remain. Public avatar reads remain intentional. All public application tables have RLS enabled. Supabase-managed internal schemas are not modified.
 
