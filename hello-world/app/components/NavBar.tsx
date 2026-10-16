@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import AccountMenu from "./AccountMenu";
 
-const navigationItems = [
+const navigationItems: { label: string; href: string; active: boolean }[] = [
 	// { label: "AI captions", href: "/captions", active: false },
 	// // { label: "Top 100", href: "/", active: true },
 	// { label: "Favorites", href: "/favorite", active: false },
