@@ -6,7 +6,7 @@ Sam wants relatable campus and NYC humor with little effort. The app turns one s
 
 ## Included
 
-- `/new`: authenticated creation form, three styles, situation suggestions, loading/error/result states.
+- `/new`: authenticated creation form, three styles, situation suggestions, loading/error/result states. On the home feed, the main generate button opens an anchored popup and the floating plus opens the same popup centered in the viewport, with a dimmed background and no URL change. The popup remains scrollable with its scrollbar hidden. Escape or the close button dismisses it and restores background scrolling. Successful publication closes the modal and refreshes the feed in place. Direct visits to `/new` remain supported.
 - `/captions`: newest 30 saved captions, aggregate scores, sign-in prompt for visitors.
 - `/`: logged-out landing page; signed-in real feed with AI captions and creation links. Apply `database/ranked-caption-feed.sql` after the caption/image migrations: posts from the last 72 hours appear first, ranked by positive votes (likes), with newer posts breaking ties. Older posts follow newest-first, up to 30 posts total. Ranking happens before the limit; downvotes affect displayed scores but not the likes ranking. `/captions` remains newest-first. If the ranking function is missing (`PGRST202` or `42883`), the homepage temporarily falls back to newest-first and logs a migration reminder. Other query failures log their error code on the server and keep the unavailable message.
 - Server-side Gemini calls, 25-second timeout, structured JSON output validation.

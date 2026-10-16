@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { generateCaptionOptions, publishCaptionChoice, type CaptionOptionsState } from './actions';
 import { imageFileError } from '@/lib/ai/images';
 const empty: CaptionOptionsState = { error: '', draftId: '', captions: [] };
-export default function GenerationForm() {
+export default function GenerationForm({ onPublished }: { onPublished?: () => void } = {}) {
   const router = useRouter();
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
@@ -52,7 +52,8 @@ export default function GenerationForm() {
         setError(result.error);
         if (result.id) {
           setPublishedId(result.id);
-          router.replace('/');
+          if (onPublished) onPublished();
+          else router.replace('/');
         }
       }
       catch { setError('Could not confirm publication. Please retry; this will not create a duplicate post.'); }

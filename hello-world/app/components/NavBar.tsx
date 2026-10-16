@@ -4,10 +4,10 @@ import { createClient } from "@/utils/supabase/server";
 import AccountMenu from "./AccountMenu";
 
 const navigationItems = [
-	{ label: "AI captions", href: "/captions", active: false },
-	// { label: "Top 100", href: "/", active: true },
-	{ label: "Favorites", href: "/favorite", active: false },
-	// { label: "Images", href: "/images", active: false },
+	// { label: "AI captions", href: "/captions", active: false },
+	// // { label: "Top 100", href: "/", active: true },
+	// { label: "Favorites", href: "/favorite", active: false },
+	// // { label: "Images", href: "/images", active: false },
 ];
 
 
@@ -47,10 +47,10 @@ function SignedInNavBar({ name, email }: { name: string; email: string }) {
 			<div className="mx-auto flex min-h-[85px] max-w-[1280px] flex-wrap items-center justify-between gap-x-10 gap-y-3 overflow-visible px-5 py-4 sm:min-h-[104px] sm:flex-nowrap sm:px-[35px]">
 				<div className="flex w-full shrink-0 items-center justify-between gap-8 sm:w-auto sm:justify-start sm:gap-[76px]">
 					<BrandLink />
-					{/* creating new post needs functionality */}
-						<Link href="/new" className="text-sm font-semibold transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] sm:text-base">
+
+						{/* <Link href="/new" className="text-sm font-semibold transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] sm:text-base">
 						Generate a Caption
-					</Link>
+					</Link> */}
 				</div>
 
 				<div className="relative flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end sm:gap-5 lg:gap-7">
