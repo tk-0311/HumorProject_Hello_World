@@ -62,7 +62,12 @@ export default function HumorLanding({ children }: { children: ReactNode }) {
           <h2 id="latest-posts-title">Fresh from the community.</h2>
           <p className="feed-note">Newest posts first.</p>
         </div>
-        <div className="mx-auto max-w-[620px]">{children}</div>
+        <div className="landing-post-layout">
+          <aside className="landing-post-navigation" aria-label="Browse more posts">
+            <Link href="/captions" className="view-more-memes">View more memes <span aria-hidden="true">→</span></Link>
+          </aside>
+          <div className="landing-post-feed">{children}</div>
+        </div>
       </section>
     </main>
     <footer><a className="footer-logo" href="#">humorproject.</a><span>Made for laughs. And the occasional nose exhale.</span><span>© 2026 HumorProject</span></footer>

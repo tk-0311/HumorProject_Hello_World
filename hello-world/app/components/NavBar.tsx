@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import AccountMenu from "./AccountMenu";
 
 const navigationItems: { label: string; href: string; active: boolean }[] = [
+	{ label: "Memes", href: "/captions", active: false },
 	// { label: "AI captions", href: "/captions", active: false },
 	// // { label: "Top 100", href: "/", active: true },
 	// { label: "Favorites", href: "/favorite", active: false },
@@ -29,6 +30,7 @@ function SignedOutNavBar() {
 			<div className="mx-auto flex min-h-[85px] w-full max-w-[1280px] items-center justify-between gap-5 px-5 sm:min-h-[104px] sm:px-[35px]">
 				<BrandLink />
 				<div className="flex items-center gap-3 sm:gap-8">
+					<Link href="/captions" className="text-sm font-semibold transition-colors hover:text-[var(--accent-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] sm:text-base">Memes</Link>
 					<Link href="/login" className="text-sm font-semibold transition-colors hover:text-[var(--accent-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] sm:text-base">
 						Login
 					</Link>
