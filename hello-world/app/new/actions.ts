@@ -6,10 +6,22 @@ import { createClient } from '@/utils/supabase/server';
 import { CAPTION_IMAGE_BUCKET, imageFileError, imageExtension, matchesImageSignature, type ImageType } from '@/lib/ai/images';
 import { buildImageCaptionPrompt, parseCaptionOptions, parseStyle, validCaptionSelection } from '@/lib/ai/caption-options';
 import { describeGeminiError, shouldFallbackGeminiModel } from '@/lib/ai/gemini-error';
+import { recordTelemetry } from '@/lib/telemetry';
 
 export type CaptionOptionsState = { error: string; draftId: string; captions: string[] };
 export async function generateCaptionOptions(form: FormData): Promise<CaptionOptionsState> {
-  const failure = (error: string): CaptionOptionsState => ({ error, draftId: '', captions: [] });
+  const startedAt = Date.now();
+  let telemetryRecorded = false;
+  let telemetryModel: string | undefined;
+  let telemetryProviderStatus: number | undefined;
+  const finish = async (state: CaptionOptionsState, success: boolean, errorCategory?: string): Promise<CaptionOptionsState> => {
+    if (!telemetryRecorded) {
+      telemetryRecorded = true;
+      await recordTelemetry({ route: 'caption.generate', method: 'SERVER_ACTION', success, durationMs: Date.now() - startedAt, errorCategory, providerStatus: telemetryProviderStatus, model: telemetryModel });
+    }
+    return state;
+  };
+  const failure = (error: string, category = 'validation'): Promise<CaptionOptionsState> => finish({ error, draftId: '', captions: [] }, false, category);
   const supabase = createClient(await cookies());
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return failure('Please log in before generating captions.');
@@ -40,6 +52,7 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   });
   const logGeminiRejection = async (modelName: string, response: Response) => {
     const errorBody: unknown = await response.json().catch(() => null);
+    telemetryProviderStatus = response.status;
     const { message, diagnostic } = describeGeminiError(response.status, errorBody, key);
     // Detailed provider messages stay in local development logs. Production
     // logs contain only codes, and the browser never receives raw details.
@@ -55,20 +68,22 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   };
   let captions: string[];
   let modelUsed = model;
+  telemetryModel = model;
   try {
     let response = await requestGemini(modelUsed);
     if (!response.ok) {
       const primaryFailure = await logGeminiRejection(modelUsed, response);
       if (!shouldFallbackGeminiModel(primaryFailure.diagnostic.httpStatus, primaryFailure.diagnostic.googleStatus)
         || modelUsed === fallbackModel) {
-        return failure(primaryFailure.message);
+        return failure(primaryFailure.message, 'provider');
       }
       console.warn(`[caption-generation] ${modelUsed} is unavailable; retrying once with ${fallbackModel}.`);
       modelUsed = fallbackModel;
+      telemetryModel = modelUsed;
       response = await requestGemini(modelUsed);
       if (!response.ok) {
         const fallbackFailure = await logGeminiRejection(modelUsed, response);
-        return failure(fallbackFailure.message);
+        return failure(fallbackFailure.message, 'provider');
       }
     }
     const body = await response.json();
@@ -76,7 +91,7 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
     if (candidate?.finishReason !== 'STOP') return failure('Gemini could not finish these captions. Try again or choose another photo.');
     const text = candidate.content?.parts?.filter((part: { text?: string; thought?: boolean }) => !part.thought).map((part: { text?: string }) => part.text ?? '').join('');
     captions = parseCaptionOptions(text ?? '');
-  } catch { return failure('Generation timed out or returned unusable captions. Please try again.'); }
+  } catch { return failure('Generation timed out or returned unusable captions. Please try again.', 'provider_or_response'); }
   const imagePath = `${user.id}/${randomUUID()}.${imageExtension(image.type as ImageType)}`;
   const { error: uploadError } = await supabase.storage.from(CAPTION_IMAGE_BUCKET).upload(imagePath, imageBytes, { contentType: image.type, upsert: false });
   if (uploadError) return failure('Your photo could not be saved. Please try again.');
@@ -88,17 +103,22 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
       ? 'You’ve generated your 10 caption sets for today. Come back tomorrow (UTC).'
       : 'Your caption options could not be saved. Please try again.');
   }
-  return { error: '', draftId: data.id, captions };
+  return finish({ error: '', draftId: data.id, captions }, true);
 }
 
 export async function publishCaptionChoice(draftId: string, index: number): Promise<{ error: string; id: string }> {
-  if (!validCaptionSelection(draftId, index)) return { error: 'Choose one of the generated captions.', id: '' };
+  const startedAt = Date.now();
+  const finish = async (result: { error: string; id: string }, success: boolean, errorCategory?: string) => {
+    await recordTelemetry({ route: 'caption.publish', method: 'SERVER_ACTION', success, durationMs: Date.now() - startedAt, errorCategory });
+    return result;
+  };
+  if (!validCaptionSelection(draftId, index)) return finish({ error: 'Choose one of the generated captions.', id: '' }, false, 'validation');
   const supabase = createClient(await cookies());
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return { error: 'Please log in before publishing.', id: '' };
+  if (authError || !user) return finish({ error: 'Please log in before publishing.', id: '' }, false, 'authentication');
   // Atomic owner check + row lock + insert. A repeated request returns the same post.
   const { data: id, error } = await supabase.rpc('publish_caption_choice', { draft_id: draftId, choice_index: index });
-  if (error || !id) return { error: 'Your caption could not be published. Please try again.', id: '' };
+  if (error || !id) return finish({ error: 'Your caption could not be published. Please try again.', id: '' }, false, 'database');
   revalidatePath('/'); revalidatePath('/captions');
-  return { error: '', id };
+  return finish({ error: '', id }, true);
 }

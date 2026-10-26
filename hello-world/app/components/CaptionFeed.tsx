@@ -23,10 +23,10 @@ export default async function CaptionFeed({ canVote, prioritizeRecentLikes = fal
   const { data: imageLinks } = imagePaths.length ? await supabase.storage.from(CAPTION_IMAGE_BUCKET).createSignedUrls(imagePaths, 3600) : { data: [] };
   const imageMap = new Map((imageLinks ?? []).map(image => [image.path, image.signedUrl]));
   const ids = captions.map(c => c.id);
-  const { data: scores, error: scoreError } = await supabase.rpc('caption_scores', { generation_ids: ids });
+  const { data: scores, error: scoreError } = await supabase.rpc('caption_vote_counts', { generation_ids: ids });
   const { data: votes, error: voteError } = canVote ? await supabase.from('caption_votes').select('generation_id,value').in('generation_id',ids) : { data: [], error: null };
   if (scoreError || voteError) return <p role="status">Voting information could not be loaded. Please refresh before rating.</p>;
-  const scoreMap = new Map<string,number>((scores ?? []).map((r: {generation_id:string;score:number}) => [r.generation_id,Number(r.score)]));
+  const countMap = new Map<string, { likes: number; dislikes: number }>((scores ?? []).map((r: {generation_id:string;likes:number;dislikes:number}) => [r.generation_id, { likes: Number(r.likes), dislikes: Number(r.dislikes) }]));
   const voteMap = new Map<string,number>((votes ?? []).map((r: {generation_id:string;value:number}) => [r.generation_id,r.value]));
-  return <div className="space-y-5">{captions.map(c => <CaptionCard key={`${c.id}-${scoreMap.get(c.id)}-${voteMap.get(c.id)}`} caption={c} imageUrl={c.image_path ? imageMap.get(c.image_path) ?? undefined : undefined} score={scoreMap.get(c.id) ?? 0} myVote={voteMap.get(c.id) ?? 0} canVote={canVote}/>)}</div>;
+  return <div className="space-y-5">{captions.map(c => <CaptionCard key={`${c.id}-${countMap.get(c.id)?.likes}-${countMap.get(c.id)?.dislikes}-${voteMap.get(c.id)}`} caption={c} imageUrl={c.image_path ? imageMap.get(c.image_path) ?? undefined : undefined} likes={countMap.get(c.id)?.likes ?? 0} dislikes={countMap.get(c.id)?.dislikes ?? 0} myVote={voteMap.get(c.id) ?? 0} canVote={canVote}/>)}</div>;
 }

@@ -41,7 +41,7 @@ function SignedOutNavBar() {
 	);
 }
 
-function SignedInNavBar({ name, email }: { name: string; email: string }) {
+function SignedInNavBar({ name, email, isAdmin, adminUrl }: { name: string; email: string; isAdmin: boolean; adminUrl?: string }) {
 	return (
 		<header className="relative z-40 min-h-[85px] overflow-visible border-b border-[var(--border)] bg-[var(--background)] text-[var(--muted)] sm:min-h-[104px]">
 			<div className="mx-auto flex min-h-[85px] max-w-[1280px] flex-wrap items-center justify-between gap-x-10 gap-y-3 overflow-visible px-5 py-4 sm:min-h-[104px] sm:flex-nowrap sm:px-[35px]">
@@ -66,7 +66,7 @@ function SignedInNavBar({ name, email }: { name: string; email: string }) {
 							</Link>
 						))}
 					</nav>
-					<AccountMenu name={name} email={email} />
+					<AccountMenu name={name} email={email} isAdmin={isAdmin} adminUrl={adminUrl} />
 				</div>
 			</div>
 		</header>
@@ -77,6 +77,24 @@ export default async function NavBar() {
 	const cookieStore = await cookies();
 	const supabase = createClient(cookieStore);
 	const { data: { user } } = await supabase.auth.getUser();
+	let isAdmin = false;
+	let adminUrl: string | undefined;
+	if (user) {
+		const { data: profile, error } = await supabase
+			.from("profiles")
+			.select("role")
+			.eq("user_id", user.id)
+			.maybeSingle();
+
+		if (error) {
+			console.error("Account role load failed:", error.message);
+		} else if (profile?.role === "admin") {
+			isAdmin = true;
+			if (process.env.NEXT_PUBLIC_ADMIN_PANEL_URL) {
+				adminUrl = `${process.env.NEXT_PUBLIC_ADMIN_PANEL_URL.replace(/\/+$/, "")}/admin`;
+			}
+		}
+	}
 
 	const metadata = user?.user_metadata ?? {};
 	const name = typeof metadata.full_name === "string"
@@ -86,6 +104,6 @@ export default async function NavBar() {
 			: user?.email?.split("@")[0] ?? "Account";
 
 	return user
-		? <SignedInNavBar name={name} email={user.email ?? ""} />
+		? <SignedInNavBar name={name} email={user.email ?? ""} isAdmin={isAdmin} adminUrl={adminUrl} />
 		: <SignedOutNavBar />;
 }

@@ -10,7 +10,7 @@ export default async function Page() {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Login and OAuth callbacks return here; signed-in users go straight to captions.
-  if (!user) return <HumorLanding />;
+  if (!user) return <HumorLanding><CaptionFeed canVote={false} /></HumorLanding>;
 
   return (
     <>
@@ -25,7 +25,7 @@ export default async function Page() {
             <p className="mt-3 text-base text-[var(--muted)]">Real photos. AI punchlines. You decide what’s funny.</p>
             <GenerateCaptionButton />
           </div>
-          <CaptionFeed canVote={true} prioritizeRecentLikes />
+          <CaptionFeed canVote={true} />
         </section>
       </main>
     </>

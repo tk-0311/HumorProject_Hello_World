@@ -9,6 +9,8 @@ type Theme = "light" | "dark" | "system";
 type AccountMenuProps = {
   name: string;
   email: string;
+  isAdmin: boolean;
+  adminUrl?: string;
 };
 
 const themeOptions: { value: Theme; label: string }[] = [
@@ -42,7 +44,7 @@ function PersonIcon() {
   );
 }
 
-export default function AccountMenu({ name, email }: AccountMenuProps) {
+export default function AccountMenu({ name, email, isAdmin, adminUrl }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, () => "system");
@@ -105,9 +107,21 @@ export default function AccountMenu({ name, email }: AccountMenuProps) {
           <div className="border-b border-[var(--border)] px-5 py-4">
             <p className="truncate text-lg font-semibold leading-snug">{name}</p>
             <p className="truncate text-base text-[var(--muted)]">{email}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--accent-strong)]">
+              {isAdmin ? "Admin" : "Normal user"}
+            </p>
           </div>
 
           <div className="p-2">
+            {adminUrl && (
+              <a
+                href={adminUrl}
+                onClick={() => setOpen(false)}
+                className="flex min-h-14 items-center px-3 text-lg font-semibold transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-strong)]"
+              >
+                Admin dashboard
+              </a>
+            )}
             <Link
               href="/profile"
               onClick={() => setOpen(false)}

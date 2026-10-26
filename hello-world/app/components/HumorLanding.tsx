@@ -3,7 +3,7 @@
 import './HumorLanding.css';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 
 const quips = ['Oh great. Another human. I like you already.', 'Your screen time report is about to get interesting.', 'I followed my dreams. They led me to the snack drawer.', 'Come for the jokes. Stay because you forgot why you opened your phone.'];
 const posts = [
@@ -12,7 +12,7 @@ const posts = [
   { name: 'Jules', handle: 'julesofwisdom', avatar: 'J', color: '#efce96', category: 'CURRENT MOOD', text: '“You need to get out of your comfort zone.”\n\nIt took me years to make it comfortable. Absolutely not.', likes: 392, replies: 47, time: '5h', tag: 'protect your peace' },
 ];
 
-export default function HumorLanding() {
+export default function HumorLanding({ children }: { children: ReactNode }) {
   const [quip, setQuip] = useState(quips[0]);
   const [liked, setLiked] = useState<number[]>([]);
   const [burst, setBurst] = useState<number | null>(null);
@@ -57,6 +57,13 @@ export default function HumorLanding() {
         <div className="hero-art"><span className="scribble-note">your new bad influence<svg viewBox="0 0 90 60" aria-hidden="true"><path d="M3 4 Q80 5 55 48 M43 37 L55 49 L69 40" /></svg></span><button className="floating emoji-one" aria-label="Tell me a joke" onClick={say}>😂</button><button className="floating emoji-two" aria-label="Another mischievous quip" onClick={say}>✦</button><button className="floating emoji-three" aria-label="A little more chaos" onClick={say}>🍿</button><div className="mascot-shadow"/><div ref={mascot} className="mascot" role="img" aria-label="A cheerful lime mascot whose eyes follow your cursor"><div className="brow left"/><div className="brow right"/><div className="eyes"><div className="eye"><span/></div><div className="eye"><span/></div></div><div className="cheek left"/><div className="cheek right"/><div className="mouth"><span/></div><div className="arm left"/><div className="arm right"/></div><button className="speech" onClick={say} onMouseEnter={say} onFocus={say}><span className="speech-label">YOUR UNQUALIFIED LIFE COACH</span><span>{quip}</span><small>tap for more questionable wisdom</small></button><div className="mascot-caption">100% judgment. 0% actual judgment.</div></div>
       </section>
       <div className="ticker" aria-label="Community values"><span>GOOD JOKES</span><b>✳</b><span>BAD PUNS</span><b>✳</b><span>YOUR PEOPLE</span><b>✳</b><span>ZERO MAIN CHARACTER REQUIREMENTS</span><b>✳</b><span>GOOD JOKES</span><b>✳</b></div>
+      <section id="feed" aria-labelledby="latest-posts-title" className="feed">
+        <div className="feed-heading">
+          <h2 id="latest-posts-title">Fresh from the community.</h2>
+          <p className="feed-note">Newest posts first.</p>
+        </div>
+        <div className="mx-auto max-w-[620px]">{children}</div>
+      </section>
     </main>
     <footer><a className="footer-logo" href="#">humorproject.</a><span>Made for laughs. And the occasional nose exhale.</span><span>© 2026 HumorProject</span></footer>
     <div className={`toast ${toast ? 'visible' : ''}`} role="status">{toast}</div>
