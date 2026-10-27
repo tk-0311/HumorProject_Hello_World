@@ -129,6 +129,13 @@ export default function AccountMenu({ name, email, isAdmin, adminUrl }: AccountM
             >
               Profile
             </Link>
+            <Link
+              href="/favorite"
+              onClick={() => setOpen(false)}
+              className="flex min-h-14 items-center px-3 text-lg transition-colors hover:bg-[var(--menu-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-strong)]"
+            >
+              Liked memes
+            </Link>
 
             <button
               type="button"

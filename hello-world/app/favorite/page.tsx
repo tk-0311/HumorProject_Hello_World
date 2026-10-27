@@ -1,58 +1,124 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { cookies } from "next/headers";
-import { createClient } from "@/utils/supabase/server";
-import NavBar from "../components/NavBar";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
+import { CAPTION_IMAGE_BUCKET } from '@/lib/ai/images';
+import type { Caption } from '../components/CaptionCard';
+import LikedCaptionsList from './LikedCaptionsList';
+import NavBar from '../components/NavBar';
 
 export const metadata: Metadata = {
-  title: "Favorites | Humor Project",
+  title: 'Liked memes | Humor Project',
 };
 
+type VoteRow = { generation_id: string };
+type VoteCount = { generation_id: string; likes: number; dislikes: number };
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  return result;
+}
+
 export default async function FavoritePage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient(await cookies());
   const { data: { user } } = await supabase.auth.getUser();
 
-  const photoResult = user
-    ? await supabase
-        .from("profiles")
-        .select("profile_image")
-        .eq("user_id", user.id)
-        .maybeSingle()
-    : null;
+  if (!user) {
+    return (
+      <>
+        <NavBar />
+        <main className="min-h-[calc(100svh-85px)] bg-[var(--background)] px-5 py-12 text-[var(--foreground)] sm:min-h-[calc(100svh-104px)]">
+          <section className="app-surface mx-auto max-w-xl rounded-2xl border border-[var(--border)] p-8 text-center">
+            <h1 className="text-3xl font-extrabold">Your liked memes</h1>
+            <p className="my-4 text-[var(--muted)]">Log in to see the memes you’ve voted “↑ Funny”.</p>
+            <Link href="/login" className="inline-flex min-h-12 items-center rounded-lg bg-[var(--foreground)] px-6 font-bold text-white">Log in</Link>
+          </section>
+        </main>
+      </>
+    );
+  }
+
+  const likedVotes: VoteRow[] = [];
+  let loadError = false;
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from('caption_votes')
+      .select('generation_id')
+      .eq('user_id', user.id)
+      .eq('value', 1)
+      .order('created_at', { ascending: false })
+      .order('generation_id', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      loadError = true;
+      break;
+    }
+    const page = (data ?? []) as VoteRow[];
+    likedVotes.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  const likedIds = likedVotes.map((vote) => vote.generation_id);
+  const captionsById = new Map<string, Caption>();
+  const countsById = new Map<string, { likes: number; dislikes: number }>();
+
+  for (const group of chunks(chunks(likedIds, 100), 10)) {
+    const results = await Promise.all(group.map(async (ids) => {
+      const [captionsResult, countsResult] = await Promise.all([
+        supabase.from('ai_generations').select('id,situation,caption,style,created_at,image_path').in('id', ids),
+        supabase.rpc('caption_vote_counts', { generation_ids: ids }),
+      ]);
+      return { captionsResult, countsResult };
+    }));
+
+    for (const { captionsResult, countsResult } of results) {
+      if (captionsResult.error || countsResult.error) {
+        loadError = true;
+        continue;
+      }
+      for (const caption of (captionsResult.data ?? []) as Caption[]) captionsById.set(caption.id, caption);
+      for (const count of (countsResult.data ?? []) as VoteCount[]) {
+        countsById.set(count.generation_id, { likes: Number(count.likes), dislikes: Number(count.dislikes) });
+      }
+    }
+  }
+
+  const captions = likedIds.flatMap((id) => {
+    const caption = captionsById.get(id);
+    if (!caption) return [];
+    const counts = countsById.get(id) ?? { likes: 0, dislikes: 0 };
+    return [{ caption, ...counts }];
+  });
+
+  const imagePaths = captions.flatMap(({ caption }) => caption.image_path ? [caption.image_path] : []);
+  const imageLinks = [];
+  for (const group of chunks(imagePaths, 100)) {
+    const { data } = await supabase.storage.from(CAPTION_IMAGE_BUCKET).createSignedUrls(group, 3600);
+    imageLinks.push(...(data ?? []));
+  }
+  const imageMap = new Map(imageLinks.filter((image) => image.path && image.signedUrl).map((image) => [image.path, image.signedUrl]));
+  const likedCaptions = captions.map(({ caption, likes, dislikes }) => ({
+    caption,
+    likes,
+    dislikes,
+    imageUrl: caption.image_path ? imageMap.get(caption.image_path) ?? undefined : undefined,
+  }));
 
   return (
     <>
       <NavBar />
-      <main className="flex min-h-[calc(100svh-85px)] items-center justify-center bg-[var(--background)] px-5 py-12 text-[var(--foreground)] sm:min-h-[calc(100svh-104px)]">
-        <section className="flex w-full max-w-[620px] flex-col items-center gap-6 rounded-[18px] border border-[var(--border)] bg-[var(--surface)] px-6 py-10 text-center shadow-[0_16px_50px_rgba(37,41,35,0.07)] sm:px-10 sm:py-12">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-            <span aria-hidden="true" className="text-lg">✳</span> Keep the good ones close
-          </p>
-          {user && (photoResult?.data?.profile_image ? (
-            // Public profile images are served from Supabase Storage.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photoResult.data.profile_image}
-              alt="Your profile"
-              className="h-32 w-32 rounded-full border-4 border-[var(--accent)] object-cover sm:h-40 sm:w-40"
-            />
-          ) : (
-            <div aria-label="No profile photo uploaded" className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-[var(--accent)] bg-[var(--surface-raised)] text-5xl text-[var(--muted)] sm:h-40 sm:w-40">
-              {Array.from(user.email?.trim() ?? "?")[0]?.toUpperCase() || "?"}
-            </div>
-          ))}
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--foreground)] sm:text-4xl">Your favorites</h1>
-          <p className="max-w-md text-base leading-relaxed text-[var(--muted)]">
-            {user ? "You’re logged in. Your favorite posts will be easy to find here." : "Favorites are available when you’re logged in."}
-          </p>
-          {!user && (
-            <Link href="/login" className="inline-flex min-h-12 items-center justify-center gap-3 rounded-[9px] bg-[var(--foreground)] px-6 font-semibold text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)]">
-              Login
-              <span aria-hidden="true" className="text-[var(--accent)]">✳</span>
-            </Link>
-          )}
-        </section>
+      <main className="min-h-[calc(100svh-85px)] bg-[var(--background)] px-5 py-10 text-[var(--foreground)] sm:min-h-[calc(100svh-104px)] sm:py-12">
+        <div className="mx-auto max-w-3xl">
+          <header className="mb-8">
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--accent-strong)]">Your collection</p>
+            <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Liked memes</h1>
+            <p className="mt-2 text-[var(--muted)]">Memes you’ve voted “↑ Funny”. Remove your upvote to take one off this list.</p>
+          </header>
+          {loadError && <p role="status" className="mb-5 rounded-lg border border-[var(--border)] p-4">Some liked captions couldn’t be loaded. Please refresh to try again.</p>}
+          {(!loadError || likedCaptions.length > 0) && <LikedCaptionsList initialCaptions={likedCaptions} />}
+        </div>
       </main>
     </>
   );

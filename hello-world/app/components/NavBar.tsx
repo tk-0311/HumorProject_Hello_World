@@ -5,6 +5,7 @@ import AccountMenu from "./AccountMenu";
 
 const navigationItems: { label: string; href: string; active: boolean }[] = [
 	{ label: "Memes", href: "/captions", active: false },
+	{ label: "favorites", href: "/favorite", active: false },
 	// { label: "AI captions", href: "/captions", active: false },
 	// // { label: "Top 100", href: "/", active: true },
 	// { label: "Favorites", href: "/favorite", active: false },
