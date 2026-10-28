@@ -1,16 +1,18 @@
 import { cookies } from 'next/headers';
+import Link from 'next/link';
 import GenerateCaptionButton from './components/GenerateCaptionButton';
 import { createClient } from '@/utils/supabase/server';
 import NavBar from './components/NavBar';
 import CaptionFeed from './components/CaptionFeed';
 import HumorLanding from './components/HumorLanding';
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
   const supabase = createClient(await cookies());
   const { data: { user } } = await supabase.auth.getUser();
+  const { view } = await searchParams;
 
-  // Login and OAuth callbacks return here; signed-in users go straight to captions.
-  if (!user) return <HumorLanding><CaptionFeed canVote={false} /></HumorLanding>;
+  // Visitors can open the home feed from the landing page without signing in.
+  if (!user && view !== 'feed') return <HumorLanding><CaptionFeed canVote={false} /></HumorLanding>;
 
   return (
     <>
@@ -23,9 +25,9 @@ export default async function Page() {
             </p>
             <h1 id="feed-title" className="mt-3 text-4xl font-extrabold tracking-tight sm:text-5xl">Fresh AI captions.</h1>
             <p className="mt-3 text-base text-[var(--muted)]">Real photos. AI punchlines. You decide what’s funny.</p>
-            <GenerateCaptionButton />
+            {user ? <GenerateCaptionButton /> : <Link href="/login" className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--foreground)] px-5 py-3 font-bold text-[var(--background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Log in to generate a caption</Link>}
           </div>
-          <CaptionFeed canVote={true} />
+          <CaptionFeed canVote={!!user} />
         </section>
       </main>
     </>

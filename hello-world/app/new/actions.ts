@@ -1,9 +1,10 @@
 'use server';
-import { randomUUID } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
-import { CAPTION_IMAGE_BUCKET, imageFileError, imageExtension, matchesImageSignature, type ImageType } from '@/lib/ai/images';
+import { CAPTION_IMAGE_BUCKET } from '@/lib/ai/images';
+import { uploadUniqueImage } from '@/lib/storage/image-deduplication';
+import { resolveImageInput } from '@/lib/storage/saved-images';
 import { validCaptionSelection } from '@/lib/ai/caption-options';
 import { parseCaptionPromptChain } from '@/lib/ai/prompt-chain';
 import { generateWithChain } from '@/lib/ai/generate-captions';
@@ -30,12 +31,10 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   const supabase = createClient(await cookies());
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return failure('Please log in before generating captions.');
-  const image = form.get('image');
-  if (!(image instanceof File) || !image.size) return failure('Choose a photo first.');
-  const fileError = imageFileError(image.size, image.type);
-  if (fileError) return failure(fileError);
-  const imageBytes = Buffer.from(await image.arrayBuffer());
-  if (!matchesImageSignature(imageBytes, image.type)) return failure('This file does not match its image format. Choose another photo.');
+  let photo;
+  try { photo = await resolveImageInput(supabase, form); }
+  catch (error) { return failure((error as Error).message); }
+  const imageBytes = Buffer.from(photo.bytes);
   telemetryContext = { surface: 'humor_project', phase: 'chain_configuration' };
   let catalog: ModelCatalog;
   try { catalog = await loadModelCatalog(supabase); }
@@ -51,7 +50,7 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   let modelUsed: string;
   try {
     const result = await generateWithChain(supabase, catalog, promptChain, 'all',
-      { mimeType: image.type, base64: imageBytes.toString('base64') },
+      { mimeType: photo.mime, base64: imageBytes.toString('base64') },
       (model, status) => { telemetryModel = model; telemetryProviderStatus = status; });
     captions = result.captions; modelUsed = result.model;
   } catch (error) {
@@ -66,14 +65,15 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
     return failure('Caption generation is temporarily unavailable. Please try again later.', 'configuration');
   }
   telemetryContext = { surface: 'humor_project', phase: 'image_upload' };
-  const imagePath = `${user.id}/${randomUUID()}.${imageExtension(image.type as ImageType)}`;
-  const { error: uploadError } = await supabase.storage.from(CAPTION_IMAGE_BUCKET).upload(imagePath, imageBytes, { contentType: image.type, upsert: false });
-  if (uploadError) return failure('Your photo could not be saved. Please try again.');
+  let imagePath: string;
+  try { imagePath = photo.path ?? (await uploadUniqueImage(supabase, { bucket: CAPTION_IMAGE_BUCKET, userId: user.id, bytes: imageBytes, contentType: photo.mime })).path; }
+  catch { return failure('Your photo could not be checked or saved. Please try again.'); }
   telemetryContext = { surface: 'humor_project', phase: 'draft_save' };
   // Options, prompt, and image stay private until the owner chooses a caption.
   const { data, error } = await supabase.from('caption_drafts').insert({ user_id: user.id, image_path: imagePath, prompt, style: 'mixed', model: modelUsed, captions }).select('id').single();
   if (error || !data) {
-    await supabase.storage.from(CAPTION_IMAGE_BUCKET).remove([imagePath]);
+    // This photo may be shared with a simultaneous draft save. Unused files can
+    // be removed from the admin image library without deleting another draft's photo.
     return failure(error?.code === 'P0001'
       ? 'You’ve generated your 10 caption sets for today. Come back tomorrow (UTC).'
       : 'Your caption options could not be saved. Please try again.');

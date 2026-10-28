@@ -1,0 +1,14 @@
+.saved-image-picker { padding: 16px; margin-top: 14px; border: 1px solid var(--line,var(--border)); border-radius: 10px; }
+.saved-image-picker h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.saved-image-picker>p { font-size: 12px; line-height: 1.6; }
+.saved-image-picker-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
+.saved-image-choice { display: grid; gap: 5px; min-width: 0; padding: 5px; border: 2px solid var(--line,var(--border)); border-radius: 8px; background: var(--white,var(--surface)); cursor: pointer; color: inherit; }
+.saved-image-choice[aria-pressed="true"] { border-color: var(--green,var(--accent-strong)); }
+.saved-image-choice img { width: 100%; height: 90px; object-fit: contain; background: var(--paper,var(--background)); border-radius: 5px; }
+.saved-image-choice span { font-size: 10px; }
+.saved-image-picker-pages { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 11px; }
+.saved-image-picker-pages>div { display: flex; gap: 10px; flex-wrap: wrap; }
+.saved-image-picker-pages button,.saved-image-picker [role="alert"] button { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line,var(--border)); border-radius: 6px; background: var(--white,var(--background)); color: inherit; }
+.saved-image-picker button:disabled { opacity: .45; cursor: not-allowed; }
+.saved-image-picker button:focus-visible { outline: 2px solid var(--green,var(--accent-strong)); outline-offset: 3px; }
+@media (max-width:600px) { .saved-image-picker-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }

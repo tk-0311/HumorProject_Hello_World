@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { uploadUniqueImage } from "@/lib/storage/image-deduplication";
+import SavedImagePicker from "@/app/components/SavedImagePicker";
+import { getSavedImage, type SavedImage } from "@/lib/storage/saved-images";
 
 type ProfilePhotoFormProps = {
   currentPhoto: string | null;
@@ -13,6 +16,8 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<SavedImage | null>(null), [showSaved, setShowSaved] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
@@ -22,7 +27,8 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
 
     const formData = new FormData(event.currentTarget);
     const photo = formData.get("photo");
-    if (!(photo instanceof File) || photo.size === 0) {
+    const hasUpload = photo instanceof File && photo.size > 0;
+    if (!hasUpload && !selectedImage) {
       setErrorMessage("Choose an image to upload.");
       return;
     }
@@ -33,12 +39,12 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
       "image/webp": "webp",
       "image/gif": "gif",
     };
-    const extension = extensions[photo.type];
-    if (!extension) {
+    const extension = hasUpload ? extensions[photo.type] : null;
+    if (hasUpload && !extension) {
       setErrorMessage("Choose a JPEG, PNG, WebP, or GIF image.");
       return;
     }
-    if (photo.size > 5 * 1024 * 1024) {
+    if (hasUpload && photo.size > 5 * 1024 * 1024) {
       setErrorMessage("The image must be 5 MB or smaller.");
       return;
     }
@@ -54,24 +60,14 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
         return;
       }
 
-      objectPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from("profile-photos")
-        .upload(objectPath, photo, {
-          cacheControl: "3600",
-          contentType: photo.type,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error("Profile photo upload failed:", uploadError.message);
-        setErrorMessage(
-          uploadError.message.toLowerCase().includes("bucket")
-            ? "The profile photo storage bucket is not set up yet. Apply the profile photo Storage migration."
-            : `Upload failed: ${uploadError.message}`,
-        );
-        return;
-      }
+      let uploaded: { path: string; reused: boolean };
+      if (selectedImage) {
+        const saved = await getSavedImage(supabase, selectedImage.id);
+        if (saved.bucket !== 'profile-photos') throw new Error('Choose a saved profile photo.');
+        uploaded = { path: saved.name, reused: true };
+      } else if (hasUpload) uploaded = await uploadUniqueImage(supabase, { bucket: "profile-photos", userId: user.id, bytes: new Uint8Array(await photo.arrayBuffer()), contentType: photo.type });
+      else throw new Error('Choose a photo first.');
+      objectPath = uploaded.path;
 
       const { data: publicUrl } = supabase.storage
         .from("profile-photos")
@@ -89,7 +85,7 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
 
       if (profileError || !savedProfile) {
         console.error("Profile photo URL save failed:", profileError?.message ?? "Profile row not found");
-        await supabase.storage.from("profile-photos").remove([objectPath]);
+        // Keep the file: another profile save may already be reusing it.
         objectPath = null;
         setErrorMessage(
           profileError
@@ -99,7 +95,7 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
         return;
       }
 
-      setSuccessMessage("Profile photo updated.");
+      setSuccessMessage(uploaded.reused ? "Profile photo updated using your existing saved image." : "Profile photo updated.");
       router.refresh();
     } catch (uploadError) {
       console.error("Profile photo upload failed:", uploadError);
@@ -130,13 +126,21 @@ export default function ProfilePhotoForm({ currentPhoto, displayName }: ProfileP
       <div className="flex flex-1 flex-col gap-3 sm:items-end">
         <label htmlFor="profile-photo" className="sr-only">Choose profile photo</label>
         <input
+          ref={input}
           id="profile-photo"
           name="photo"
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
-          required
+          required={!selectedImage}
+          disabled={pending}
+          onChange={() => setSelectedImage(null)}
           className="block w-full text-sm text-[var(--muted)] file:mr-4 file:rounded-[7px] file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-4 file:py-3 file:font-semibold file:text-[var(--foreground)] hover:file:bg-[var(--menu-hover)] sm:max-w-md"
         />
+        <button type="button" disabled={pending} aria-expanded={showSaved} onClick={() => setShowSaved(value => !value)} className="min-h-11 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold">{showSaved ? 'Hide saved images' : 'Use an existing image'}</button>
+        {showSaved && <SavedImagePicker bucket="profile-photos" selectedId={selectedImage?.id} disabled={pending} onSelect={image => { setSelectedImage(image); setShowSaved(false); if (input.current) input.current.value = ''; }} />}
+        {selectedImage && <div><p className="text-sm text-[var(--muted)]">Saved photo selected. Save to use it as your profile photo.</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={selectedImage.previewUrl} alt="Selected saved profile photo" className="h-24 w-24 rounded-lg object-contain" /></div>}
         <button
           type="submit"
           disabled={pending}

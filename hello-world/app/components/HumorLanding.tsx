@@ -64,7 +64,7 @@ export default function HumorLanding({ children }: { children: ReactNode }) {
         </div>
         <div className="landing-post-layout">
           <aside className="landing-post-navigation" aria-label="Browse more posts">
-            <Link href="/captions" className="view-more-memes">View more memes <span aria-hidden="true">→</span></Link>
+            <Link href="/?view=feed" className="view-more-memes">View more memes <span aria-hidden="true">→</span></Link>
           </aside>
           <div className="landing-post-feed">{children}</div>
         </div>

@@ -4,11 +4,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { generateCaptionOptions, publishCaptionChoice, type CaptionOptionsState } from './actions';
 import { imageFileError } from '@/lib/ai/images';
+import SavedImagePicker from '@/app/components/SavedImagePicker';
+import type { SavedImage } from '@/lib/storage/saved-images';
 import { CAPTION_STYLE_ORDER, CAPTION_STYLE_LABELS, captionChoicesForStyle, captionStyleAt, captionStyleForKey, type CaptionStyle } from '@/lib/ai/caption-choices';
 const empty: CaptionOptionsState = { error: '', draftId: '', captions: [] };
 export default function GenerationForm({ onPublished }: { onPublished?: () => void } = {}) {
   const router = useRouter();
   const [image, setImage] = useState<File | null>(null);
+  const [savedImage, setSavedImage] = useState<SavedImage | null>(null), [showSaved, setShowSaved] = useState(false);
   const [preview, setPreview] = useState('');
   const [activeStyle, setActiveStyle] = useState<CaptionStyle>('dry');
   const [options, setOptions] = useState(empty);
@@ -22,23 +25,24 @@ export default function GenerationForm({ onPublished }: { onPublished?: () => vo
   const inFlight = useRef(false);
   const pickerId = useId();
   const tabs = useRef<Partial<Record<CaptionStyle, HTMLButtonElement | null>>>({});
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => () => { if (preview.startsWith('blob:')) URL.revokeObjectURL(preview); }, [preview]);
   function clearOptions() { setOptions(empty); setActiveStyle('dry'); setSelected(null); setPublishedId(''); setError(''); }
   function chooseImage(event: ChangeEvent<HTMLInputElement>) {
     clearOptions();
+    setSavedImage(null);
     const file = event.target.files?.[0];
     if (!file) { setImage(null); setPreview(''); return; }
     const issue = imageFileError(file.size, file.type);
     if (issue) { setImage(null); setPreview(''); event.target.value = ''; setError(issue); return; }
     setImage(file); setPreview(URL.createObjectURL(file));
   }
-  function removeImage() { clearOptions(); setImage(null); setPreview(''); if (input.current) input.current.value = ''; }
+  function removeImage() { clearOptions(); setImage(null); setSavedImage(null); setPreview(''); if (input.current) input.current.value = ''; }
   function generate() {
     if (inFlight.current) return;
-    if (!image) { setError('Choose a photo first.'); return; }
+    if (!image && !savedImage) { setError('Upload a photo or choose a saved image first.'); return; }
     inFlight.current = true;
     clearOptions();
-    const form = new FormData(); form.set('image', image);
+    const form = new FormData(); if (image) form.set('image', image); else if (savedImage) form.set('savedImageId', savedImage.id);
     generateTransition(async () => {
       try { const result = await generateCaptionOptions(form); setOptions(result); setError(result.error); }
       catch { setError('Could not generate captions. Your photo is still selected—please try again.'); }
@@ -69,13 +73,15 @@ export default function GenerationForm({ onPublished }: { onPublished?: () => vo
       <label htmlFor="image" className="block font-semibold">Upload an image</label>
       <input ref={input} id="image" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={chooseImage} aria-describedby="image-help" className="block w-full rounded-lg border border-dashed border-[var(--border)] p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[var(--accent)] file:px-3 file:py-2 file:font-semibold file:text-[#252923]"/>
       <p id="image-help" className="text-sm text-[var(--muted)]">JPEG, PNG, or WebP · up to 3 MB. AI will suggest captions based on what’s in the photo.</p>
+      <button type="button" disabled={busy} aria-expanded={showSaved} onClick={() => setShowSaved(value => !value)} className="min-h-11 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">{showSaved ? 'Hide saved images' : 'Use an existing image'}</button>
+      {showSaved && <SavedImagePicker selectedId={savedImage?.id} disabled={busy} onSelect={selectedImage => { clearOptions(); setSavedImage(selectedImage); setImage(null); setPreview(selectedImage.previewUrl); setShowSaved(false); if (input.current) input.current.value = ''; }} />}
       {preview && <div className="space-y-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={preview} alt="Photo selected for caption generation" onError={() => { removeImage(); setError('This photo could not be opened. Choose another file.'); }} className="max-h-80 w-full rounded-xl object-contain"/>
         <button type="button" onClick={removeImage} disabled={busy} className="min-h-11 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">Remove photo</button>
       </div>}
       <p className="text-sm text-[var(--muted)]">Get three dry, three wholesome, and three absurd captions. Browse one style at a time.</p>
-      <button type="button" onClick={generate} disabled={busy || !image} className="min-h-11 rounded-lg bg-[var(--foreground)] px-5 py-3 font-bold text-[var(--background)] disabled:opacity-50">{generating ? 'Finding your flavor of funny…' : options.draftId ? 'Generate new captions' : 'Generate caption options'}</button>
+      <button type="button" onClick={generate} disabled={busy || (!image && !savedImage)} className="min-h-11 rounded-lg bg-[var(--foreground)] px-5 py-3 font-bold text-[var(--background)] disabled:opacity-50">{generating ? 'Finding your flavor of funny…' : options.draftId ? 'Generate new captions' : 'Generate caption options'}</button>
       <p className="text-sm text-[var(--muted)]">Your photo is sent to our AI provider. Only your selected caption is published to the feed. Only successfully generated and saved sets count toward your 10 daily sets (UTC). Failed attempts do not count.</p>
     </section>
     {options.draftId && <section aria-labelledby="choice-title" className="app-surface space-y-5 rounded-2xl border border-[var(--border)] p-6">
