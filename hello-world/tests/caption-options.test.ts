@@ -9,10 +9,10 @@ test('rejects incomplete, duplicate, malformed and oversized caption options', (
  for(const input of inputs) assert.throws(()=>parseCaptionOptions(JSON.stringify(input)));
  assert.throws(()=>parseCaptionOptions('not JSON'));
 });
-test('selection accepts only a stored draft id and index zero to two', () => {
+test('selection accepts only a stored draft id and index zero to eight', () => {
  const id='11111111-1111-4111-8111-111111111111';
- for(const i of [0,1,2]) assert.equal(validCaptionSelection(id,i),true);
- for(const i of [-1,3,1.5,'1',null,NaN]) assert.equal(validCaptionSelection(id,i),false);
+ for(const i of [0,1,2,3,4,5,6,7,8]) assert.equal(validCaptionSelection(id,i),true);
+ for(const i of [-1,9,1.5,'1',null,NaN,Infinity]) assert.equal(validCaptionSelection(id,i),false);
  assert.equal(validCaptionSelection('arbitrary caption text',0),false);
 });
 test('prompt is grounded in the image and requires three options', () => {

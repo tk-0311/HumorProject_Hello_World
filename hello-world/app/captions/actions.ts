@@ -6,7 +6,7 @@ import { recordTelemetry } from '@/lib/telemetry';
 export async function voteCaption(id: string, value: number): Promise<{ error: string; likes?: number; dislikes?: number; value?: number }> {
   const startedAt = Date.now();
   const finish = async (result: { error: string; likes?: number; dislikes?: number; value?: number }, success: boolean, errorCategory?: string) => {
-    await recordTelemetry({ route: 'vote.submit', method: 'SERVER_ACTION', success, durationMs: Date.now() - startedAt, errorCategory });
+    await recordTelemetry({ route: 'vote.submit', method: 'SERVER_ACTION', success, httpStatus: 200, durationMs: Date.now() - startedAt, errorCategory });
     return result;
   };
   const input = parseVote(id, value);
@@ -43,7 +43,7 @@ const captionCommentPageSize = 50;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function finishCommentTelemetry<T>(route: string, startedAt: number, result: T, success: boolean, errorCategory?: string): Promise<T> {
-  await recordTelemetry({ route, method: 'SERVER_ACTION', success, durationMs: Date.now() - startedAt, errorCategory });
+  await recordTelemetry({ route, method: 'SERVER_ACTION', success, httpStatus: 200, durationMs: Date.now() - startedAt, errorCategory });
   return result;
 }
 

@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { signupEmailError } from '@/lib/auth/signup-policy';
 
 export type SignUpState = {
   error: string;
@@ -30,6 +31,8 @@ export async function signUp(
 
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
+  const emailError = await signupEmailError(supabase, email.trim());
+  if (emailError) return { error: emailError, success: '' };
   const siteUrl = process.env.NODE_ENV === "development"
     ? "http://localhost:3000"
     : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";

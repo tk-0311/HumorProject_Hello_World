@@ -1,4 +1,5 @@
 import { styles, type HumorStyle } from './captions';
+import { ALL_CAPTION_COUNT } from './caption-choices';
 export function parseStyle(value: unknown): HumorStyle | null {
   return typeof value === 'string' && styles.includes(value as HumorStyle) ? value as HumorStyle : null;
 }
@@ -16,5 +17,5 @@ export function parseCaptionOptions(text: string): string[] {
   return captions;
 }
 export function validCaptionSelection(draftId: unknown, index: unknown): boolean {
-  return typeof draftId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draftId) && typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < 3;
+  return typeof draftId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draftId) && typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < ALL_CAPTION_COUNT;
 }

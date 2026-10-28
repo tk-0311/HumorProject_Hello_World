@@ -1,4 +1,4 @@
-import { CAPTION_IMAGE_BUCKET } from '@/lib/ai/images';
+import { captionImageUrl } from '@/lib/ai/caption-image';
 import type { HumorStyle } from '@/lib/ai/captions';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
@@ -58,9 +58,6 @@ export default async function CaptionFeed({ canVote, prioritizeRecentLikes = fal
   }
   const captions: Caption[] = data ?? [];
   if (!captions.length) return <div className="app-surface rounded-2xl border border-[var(--border)] p-6"><h3 className="text-xl font-bold">No memes found</h3><p className="my-3 text-[var(--muted)]">Try a different meme style or date range.</p><Link href="/captions" className="font-bold underline">Clear search filters</Link></div>;
-  const imagePaths = captions.flatMap(c => c.image_path ? [c.image_path] : []);
-  const { data: imageLinks } = imagePaths.length ? await supabase.storage.from(CAPTION_IMAGE_BUCKET).createSignedUrls(imagePaths, 3600) : { data: [] };
-  const imageMap = new Map((imageLinks ?? []).map(image => [image.path, image.signedUrl]));
   const ids = captions.map(c => c.id);
   const { data: scores, error: scoreError } = await supabase.rpc('caption_vote_counts', { generation_ids: ids });
   const { data: votes, error: voteError } = canVote ? await supabase.from('caption_votes').select('generation_id,value').in('generation_id',ids) : { data: [], error: null };
@@ -70,7 +67,7 @@ export default async function CaptionFeed({ canVote, prioritizeRecentLikes = fal
   return (
     <>
       <p className="mb-4 text-sm text-[var(--muted)]" aria-live="polite">{filters ? `Page ${filters.page} · ${captions.length} meme${captions.length === 1 ? '' : 's'} shown` : 'Latest memes'}</p>
-      <div className="space-y-5">{captions.map(c => <CaptionCard key={`${c.id}-${countMap.get(c.id)?.likes}-${countMap.get(c.id)?.dislikes}-${voteMap.get(c.id)}`} caption={c} imageUrl={c.image_path ? imageMap.get(c.image_path) ?? undefined : undefined} likes={countMap.get(c.id)?.likes ?? 0} dislikes={countMap.get(c.id)?.dislikes ?? 0} myVote={voteMap.get(c.id) ?? 0} canVote={canVote}/>)}</div>
+      <div className="space-y-5">{captions.map(c => <CaptionCard key={`${c.id}-${countMap.get(c.id)?.likes}-${countMap.get(c.id)?.dislikes}-${voteMap.get(c.id)}`} caption={c} imageUrl={c.image_path ? captionImageUrl(c.id) : undefined} likes={countMap.get(c.id)?.likes ?? 0} dislikes={countMap.get(c.id)?.dislikes ?? 0} myVote={voteMap.get(c.id) ?? 0} canVote={canVote}/>)}</div>
       {filters && (filters.page > 1 || hasMore) && (
         <nav aria-label="Meme search result pages" className="mt-7 flex items-center justify-between gap-4">
           {filters.page > 1 ? <Link href={pageHref(filters, filters.page - 1)} className="min-h-11 content-center rounded-lg border border-[var(--border)] px-4 font-semibold">← Newer memes</Link> : <span />}

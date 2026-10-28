@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
-import { CAPTION_IMAGE_BUCKET } from '@/lib/ai/images';
+import { captionImageUrl } from '@/lib/ai/caption-image';
 import type { Caption } from '../components/CaptionCard';
 import LikedCaptionsList from './LikedCaptionsList';
 import NavBar from '../components/NavBar';
@@ -92,18 +92,11 @@ export default async function FavoritePage() {
     return [{ caption, ...counts }];
   });
 
-  const imagePaths = captions.flatMap(({ caption }) => caption.image_path ? [caption.image_path] : []);
-  const imageLinks = [];
-  for (const group of chunks(imagePaths, 100)) {
-    const { data } = await supabase.storage.from(CAPTION_IMAGE_BUCKET).createSignedUrls(group, 3600);
-    imageLinks.push(...(data ?? []));
-  }
-  const imageMap = new Map(imageLinks.filter((image) => image.path && image.signedUrl).map((image) => [image.path, image.signedUrl]));
   const likedCaptions = captions.map(({ caption, likes, dislikes }) => ({
     caption,
     likes,
     dislikes,
-    imageUrl: caption.image_path ? imageMap.get(caption.image_path) ?? undefined : undefined,
+    imageUrl: caption.image_path ? captionImageUrl(caption.id) : undefined,
   }));
 
   return (

@@ -4,20 +4,25 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { CAPTION_IMAGE_BUCKET, imageFileError, imageExtension, matchesImageSignature, type ImageType } from '@/lib/ai/images';
-import { buildImageCaptionPrompt, parseCaptionOptions, parseStyle, validCaptionSelection } from '@/lib/ai/caption-options';
-import { describeGeminiError, shouldFallbackGeminiModel } from '@/lib/ai/gemini-error';
+import { validCaptionSelection } from '@/lib/ai/caption-options';
+import { parseCaptionPromptChain } from '@/lib/ai/prompt-chain';
+import { generateWithChain } from '@/lib/ai/generate-captions';
+import { ProviderError } from '@/lib/ai/ai-provider';
+import { ChainFailure, type ChainFailureContext } from '@/lib/ai/chain-diagnostics';
 import { recordTelemetry } from '@/lib/telemetry';
+import { loadModelCatalog, type ModelCatalog } from '@/lib/ai/models';
 
 export type CaptionOptionsState = { error: string; draftId: string; captions: string[] };
 export async function generateCaptionOptions(form: FormData): Promise<CaptionOptionsState> {
   const startedAt = Date.now();
   let telemetryRecorded = false;
+  let telemetryContext: ChainFailureContext = { surface: 'humor_project', phase: 'input_validation' };
   let telemetryModel: string | undefined;
   let telemetryProviderStatus: number | undefined;
   const finish = async (state: CaptionOptionsState, success: boolean, errorCategory?: string): Promise<CaptionOptionsState> => {
     if (!telemetryRecorded) {
       telemetryRecorded = true;
-      await recordTelemetry({ route: 'caption.generate', method: 'SERVER_ACTION', success, durationMs: Date.now() - startedAt, errorCategory, providerStatus: telemetryProviderStatus, model: telemetryModel });
+      await recordTelemetry({ route: 'caption.generate', method: 'SERVER_ACTION', success, httpStatus: 200, durationMs: Date.now() - startedAt, errorCategory, providerStatus: telemetryProviderStatus, model: telemetryModel, chainContext: telemetryContext });
     }
     return state;
   };
@@ -31,72 +36,42 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
   if (fileError) return failure(fileError);
   const imageBytes = Buffer.from(await image.arrayBuffer());
   if (!matchesImageSignature(imageBytes, image.type)) return failure('This file does not match its image format. Choose another photo.');
-  const style = parseStyle(form.get('style'));
-  if (!style) return failure('Choose a humor style.');
-  const key = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL;
-  if (!key || !model || !/^[a-zA-Z0-9.-]+$/.test(model)) return failure('Caption generation is not configured yet. Please try again later.');
+  telemetryContext = { surface: 'humor_project', phase: 'chain_configuration' };
+  let catalog: ModelCatalog;
+  try { catalog = await loadModelCatalog(supabase); }
+  catch { return failure('Caption generation is temporarily unavailable. Please try again later.', 'configuration'); }
   const { data: allowed, error: limitError } = await supabase.rpc('claim_caption_attempt');
   if (limitError) return failure('Could not check your generation allowance. Please try again.');
   if (!allowed) return failure('You’ve generated your 10 caption sets for today. Come back tomorrow (UTC).');
-  const prompt = buildImageCaptionPrompt(style);
-  const fallbackModel = 'gemini-3.1-flash-lite';
-  const requestBody = JSON.stringify({
-    contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: image.type, data: imageBytes.toString('base64') } }] }],
-    generationConfig: { maxOutputTokens: 2048, responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: { type: 'object', properties: { captions: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 } }, required: ['captions'], additionalProperties: false } } } },
-  });
-  const requestGemini = (modelName: string) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
-    method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(25000),
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: requestBody,
-  });
-  const logGeminiRejection = async (modelName: string, response: Response) => {
-    const errorBody: unknown = await response.json().catch(() => null);
-    telemetryProviderStatus = response.status;
-    const { message, diagnostic } = describeGeminiError(response.status, errorBody, key);
-    // Detailed provider messages stay in local development logs. Production
-    // logs contain only codes, and the browser never receives raw details.
-    console.error('[caption-generation] Gemini rejected request ' + JSON.stringify({
-      model: modelName, httpStatus: diagnostic.httpStatus,
-      googleStatus: diagnostic.googleStatus, reason: diagnostic.reason,
-      ...(process.env.NODE_ENV === 'development' ? { detail: diagnostic.detail } : {}),
-    }));
-    const code = process.env.NODE_ENV === 'development'
-      ? ` (HTTP ${diagnostic.httpStatus}${diagnostic.googleStatus ? ` / ${diagnostic.googleStatus}` : ''})`
-      : '';
-    return { message: message + code, diagnostic };
-  };
+  const configuredChainResult = await supabase.rpc('get_humor_project_caption_prompt_chain');
+  const promptChain = parseCaptionPromptChain(configuredChainResult.data);
+  if (configuredChainResult.error || !promptChain) return failure('Caption generation is temporarily unavailable. Please try again later.', 'configuration');
+  const prompt = `Caption chain: ${promptChain.steps.map(step => step.title).join(' → ')}`;
   let captions: string[];
-  let modelUsed = model;
-  telemetryModel = model;
+  let modelUsed: string;
   try {
-    let response = await requestGemini(modelUsed);
-    if (!response.ok) {
-      const primaryFailure = await logGeminiRejection(modelUsed, response);
-      if (!shouldFallbackGeminiModel(primaryFailure.diagnostic.httpStatus, primaryFailure.diagnostic.googleStatus)
-        || modelUsed === fallbackModel) {
-        return failure(primaryFailure.message, 'provider');
-      }
-      console.warn(`[caption-generation] ${modelUsed} is unavailable; retrying once with ${fallbackModel}.`);
-      modelUsed = fallbackModel;
-      telemetryModel = modelUsed;
-      response = await requestGemini(modelUsed);
-      if (!response.ok) {
-        const fallbackFailure = await logGeminiRejection(modelUsed, response);
-        return failure(fallbackFailure.message, 'provider');
-      }
+    const result = await generateWithChain(supabase, catalog, promptChain, 'all',
+      { mimeType: image.type, base64: imageBytes.toString('base64') },
+      (model, status) => { telemetryModel = model; telemetryProviderStatus = status; });
+    captions = result.captions; modelUsed = result.model;
+  } catch (error) {
+    if (error instanceof ChainFailure) {
+      telemetryContext = { ...error.context, surface: 'humor_project' };
+      telemetryModel = error.model; telemetryProviderStatus = error.status;
+      return failure(error.status === 429 ? 'Caption generation is busy. Please try again shortly.' : 'Could not generate captions. Please try again later.', error.errorCategory);
     }
-    const body = await response.json();
-    const candidate = body.candidates?.[0];
-    if (candidate?.finishReason !== 'STOP') return failure('Gemini could not finish these captions. Try again or choose another photo.');
-    const text = candidate.content?.parts?.filter((part: { text?: string; thought?: boolean }) => !part.thought).map((part: { text?: string }) => part.text ?? '').join('');
-    captions = parseCaptionOptions(text ?? '');
-  } catch { return failure('Generation timed out or returned unusable captions. Please try again.', 'provider_or_response'); }
+    if (error instanceof ProviderError) return failure(error.status === 429
+      ? 'Caption generation is busy. Please try again shortly.'
+      : 'Could not generate captions. Please try again or use another photo.', 'provider');
+    return failure('Caption generation is temporarily unavailable. Please try again later.', 'configuration');
+  }
+  telemetryContext = { surface: 'humor_project', phase: 'image_upload' };
   const imagePath = `${user.id}/${randomUUID()}.${imageExtension(image.type as ImageType)}`;
   const { error: uploadError } = await supabase.storage.from(CAPTION_IMAGE_BUCKET).upload(imagePath, imageBytes, { contentType: image.type, upsert: false });
   if (uploadError) return failure('Your photo could not be saved. Please try again.');
+  telemetryContext = { surface: 'humor_project', phase: 'draft_save' };
   // Options, prompt, and image stay private until the owner chooses a caption.
-  const { data, error } = await supabase.from('caption_drafts').insert({ user_id: user.id, image_path: imagePath, prompt, style, model: modelUsed, captions }).select('id').single();
+  const { data, error } = await supabase.from('caption_drafts').insert({ user_id: user.id, image_path: imagePath, prompt, style: 'mixed', model: modelUsed, captions }).select('id').single();
   if (error || !data) {
     await supabase.storage.from(CAPTION_IMAGE_BUCKET).remove([imagePath]);
     return failure(error?.code === 'P0001'
@@ -109,7 +84,7 @@ export async function generateCaptionOptions(form: FormData): Promise<CaptionOpt
 export async function publishCaptionChoice(draftId: string, index: number): Promise<{ error: string; id: string }> {
   const startedAt = Date.now();
   const finish = async (result: { error: string; id: string }, success: boolean, errorCategory?: string) => {
-    await recordTelemetry({ route: 'caption.publish', method: 'SERVER_ACTION', success, durationMs: Date.now() - startedAt, errorCategory });
+    await recordTelemetry({ route: 'caption.publish', method: 'SERVER_ACTION', success, httpStatus: 200, durationMs: Date.now() - startedAt, errorCategory });
     return result;
   };
   if (!validCaptionSelection(draftId, index)) return finish({ error: 'Choose one of the generated captions.', id: '' }, false, 'validation');
